@@ -44,6 +44,8 @@ GPIOWrapper ledArray[NUMBER_OF_LEDS];
 // LUT to normalize LED brightness
 uint8_t ledLookupTable[] = {0,0,1,1,1,2,2,3,3,3,4,4,5,5,6,6,6,7,7,8,8,8,9,9,10,10,11,11,11,12,12,13,13,14,14,15,15,15,16,16,17,17,18,18,19,19,20,20,21,21,21,22,22,23,23,24,24,25,25,26,26,27,27,28,28,29,29,30,30,31,31,32,32,33,34,34,35,35,36,36,37,37,38,38,39,40,40,41,41,42,42,43,44,44,45,45,46,46,47,48,48,49,49,50,51,51,52,53,53,54,54,55,56,56,57,58,58,59,60,60,61,62,62,63,64,65,65,66,67,67,68,69,70,70,71,72,73,73,74,75,76,76,77,78,79,80,80,81,82,83,84,84,85,86,87,88,89,90,91,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,119,120,121,122,123,124,126,127,128,129,131,132,133,135,136,137,139,140,141,143,144,146,147,149,150,152,153,155,156,158,160,161,163,165,166,168,170,172,174,175,177,179,181,183,185,187,190,192,194,196,199,201,203,206,208,211,214,216,219,222,225,228,231,234,237,241,244,248,252,255};
 
+int count;
+
 int main(void)
 {
     SYSCFG_DL_init();
@@ -74,6 +76,8 @@ int main(void)
 
     //this part turns the light off
 
+    count = 0;
+
     while (1) {
         __WFI();
     }
@@ -97,11 +101,15 @@ uint32_t initPomoTimer(Pomodoro *ptrPomoTimer){
     ptrPomoTimer->activePeriodLEDMask = 1 << activePeriod;
 
     // set all LEDs to on initially
+    
     /*
     for (int i = 0; i< NUMBER_OF_LEDS; i++){
         DL_GPIO_setPins(ledArray[i].gpioRegs, ledArray[i].pinNumber);
     }
     */
+    
+    // set LEDs to on
+    updateLedStatuses(ptrPomoTimer, ledArray, NUMBER_OF_LEDS);
 
     secondsSinceStart = 0;
     return 0;
@@ -123,6 +131,33 @@ uint32_t initPulseConfig(PulseConfig *ptrPulseConfig, uint8_t maxBrightness){
     return 0;
 }
 
+
+
+void updateLedStatuses(Pomodoro *ptrPomoTimer, GPIOWrapper* ledArray, int32_t size){
+    // this gets called on update - need to change 
+    // unfortunately have to convert between mask and index. will do this with modulus
+
+    // pipe things in here
+
+    // turn on all LEDs in the litLedMask (do this after update)
+
+    
+    for(int i = 0; i < NUMBER_OF_LEDS; i++){
+
+        // eventually set CMPxx for each of these, and tell them to watch CMPxx vs CMPPulse. keep same PWM. 
+        if(((ptrPomoTimer->litLEDMask)>>i)%2){ // should spit out the mask one at a time, spitting out index[0] first
+            // if that LED is in the mask, turn it on
+            // this uses the helpful ledArray struct to let us iterate over whatever LEDs we want.
+            DL_GPIO_setPins(ledArray[i].gpioRegs, ledArray[i].pinNumber);
+        }
+        else{
+            DL_GPIO_clearPins(ledArray[i].gpioRegs, ledArray[i].pinNumber);
+        }
+        
+    }
+    // then change the active LED to be whatever active value
+}
+
 void incrementPomoPeriod(Pomodoro *ptrPomoTimer){
     if(ptrPomoTimer->activePeriod > 0){
         ptrPomoTimer->activePeriod -= 1;
@@ -136,16 +171,9 @@ void incrementPomoPeriod(Pomodoro *ptrPomoTimer){
     ptrPomoTimer->litLEDMask = ptrPomoTimer->litLEDMask ^ ptrPomoTimer->activePeriodLEDMask;
     // update active LED Mask to reflect the active period, making this the pulsing one
     ptrPomoTimer->activePeriodLEDMask = 1 << ptrPomoTimer->activePeriod;
-}
 
-void updateLEDStatuses(Pomodoro *ptrPomoTimer, GPIOWrapper* ledArray, int32_t size){
-    // this gets called on update - need to change 
-    // unfortunately have to convert between mask and index. will do this with modulus
-
-    // pipe things in here
-
-
-    int i = 0;
+    // change our LEDs to be on / off
+    updateLedStatuses(ptrPomoTimer, ledArray, NUMBER_OF_LEDS);
 }
 
 uint32_t initLedArray(GPIOWrapper *ledArray, int32_t size){
@@ -184,16 +212,16 @@ void SECOND_TICKER_INST_IRQHandler(){
 
 void PWM_0_INST_IRQHandler(){
     // tried to do this in HW, but it wasn't flexible enough to change which LED to trigger. 
-    // now I'll have to pipe in which LED.
+    // UPDATE: now I'll have to pipe in which LED.
 
     switch (DL_TimerG_getPendingInterrupt(PWM_0_INST)) {
         case DL_TIMER_IIDX_CC0_UP:
             // turn LED off 
-            DL_GPIO_clearPins(ledArray[2].gpioRegs, ledArray[2].pinNumber);
+            //DL_GPIO_clearPins(ledArray[2].gpioRegs, ledArray[2].pinNumber);
             break;
         case DL_TIMER_IIDX_ZERO:
             // turn LED on
-            DL_GPIO_setPins(ledArray[2].gpioRegs, ledArray[2].pinNumber);
+            //DL_GPIO_setPins(ledArray[2].gpioRegs, ledArray[2].pinNumber);
             break;
         default:
             break;
