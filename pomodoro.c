@@ -54,6 +54,7 @@ int main(void)
     NVIC_EnableIRQ(SECOND_TICKER_INST_INT_IRQN);
     NVIC_EnableIRQ(PULSE_TIMER_INST_INT_IRQN);
     NVIC_EnableIRQ(PWM_0_INST_INT_IRQN);
+    NVIC_EnableIRQ(GPIO_GRP_0_INT_IRQN); // for the button 
 
     // global brightness value 
     uint8_t mb = MAXBRIGHTNESS;
@@ -68,12 +69,6 @@ int main(void)
     //initialize pulseConfig with correct values (this will be a method eventually)
     initPulseConfig(&PulseData, mb);
 
-    // start seconds counter for Pomodoro timer
-    DL_Timer_startCounter(SECOND_TICKER_INST);
-
-    // start timer for LED pulse 
-    //DL_Timer_startCounter(PULSE_TIMER_INST);
-
     //this part turns the light off
 
     count = 0;
@@ -85,6 +80,9 @@ int main(void)
 }
 
 uint32_t initPomoTimer(Pomodoro *ptrPomoTimer){
+    /*
+    This function initializes the pomodoro timer. It should be re-invokable to reset for another session. 
+    */
     uint32_t activePeriod = NUMBER_OF_LEDS; 
     activePeriod -=1; // have to do 2 lines b/c macro doesn't play nice with operators
 
@@ -100,16 +98,17 @@ uint32_t initPomoTimer(Pomodoro *ptrPomoTimer){
     // default it to the highest # led.
     ptrPomoTimer->activePeriodLEDMask = 1 << activePeriod;
 
-    // set all LEDs to on initially
-    
-    /*
-    for (int i = 0; i< NUMBER_OF_LEDS; i++){
-        DL_GPIO_setPins(ledArray[i].gpioRegs, ledArray[i].pinNumber);
-    }
-    */
-    
     // set LEDs to on
     updateLedStatuses(ptrPomoTimer, ledArray, NUMBER_OF_LEDS);
+
+    // start seconds counter for Pomodoro timer
+    DL_Timer_startCounter(SECOND_TICKER_INST);
+
+    // start timer for LED pulse 
+    DL_Timer_startCounter(PULSE_TIMER_INST);
+
+    // start global PWM
+    DL_Timer_startCounter(PWM_0_INST);
 
     secondsSinceStart = 0;
     return 0;
@@ -125,13 +124,11 @@ uint32_t initPulseConfig(PulseConfig *ptrPulseConfig, uint8_t maxBrightness){
     ptrPulseConfig->pulseCCMPVal = maxBrightness;
     ptrPulseConfig->pulseIncrementDirection = 1;
 
-    ptrPulseConfig->pulseIncrementSize = 4;
+    ptrPulseConfig->pulseIncrementSize = 1;
     ptrPulseConfig->pulseLowerBound = 32;
     ptrPulseConfig->pulseUpperBound = maxBrightness;
     return 0;
 }
-
-
 
 void updateLedStatuses(Pomodoro *ptrPomoTimer, GPIOWrapper* ledArray, int32_t size){
     // this gets called on update - need to change 
@@ -155,6 +152,9 @@ void updateLedStatuses(Pomodoro *ptrPomoTimer, GPIOWrapper* ledArray, int32_t si
         }
         
     }
+
+    //zero out pulseCCMPVal to make transition smoother
+    PulseData.pulseCCMPVal = 0;
     // then change the active LED to be whatever active value
 }
 
@@ -163,8 +163,15 @@ void incrementPomoPeriod(Pomodoro *ptrPomoTimer){
         ptrPomoTimer->activePeriod -= 1;
     }
     else{
+
+        // kill the last light
+        DL_GPIO_clearPins(ledArray[PomoTimer.activePeriod].gpioRegs, ledArray[PomoTimer.activePeriod].pinNumber);
+  
         //needs to stop here, wait for reset
         DL_Timer_stopCounter(SECOND_TICKER_INST);
+        DL_Timer_stopCounter(PULSE_TIMER_INST);
+        DL_Timer_stopCounter(PWM_0_INST);
+
     }
 
     // update litLEDMask to turn off the active (pulsing)
@@ -217,11 +224,11 @@ void PWM_0_INST_IRQHandler(){
     switch (DL_TimerG_getPendingInterrupt(PWM_0_INST)) {
         case DL_TIMER_IIDX_CC0_UP:
             // turn LED off 
-            //DL_GPIO_clearPins(ledArray[2].gpioRegs, ledArray[2].pinNumber);
+            DL_GPIO_clearPins(ledArray[PomoTimer.activePeriod].gpioRegs, ledArray[PomoTimer.activePeriod].pinNumber);
             break;
         case DL_TIMER_IIDX_ZERO:
             // turn LED on
-            //DL_GPIO_setPins(ledArray[2].gpioRegs, ledArray[2].pinNumber);
+            DL_GPIO_setPins(ledArray[PomoTimer.activePeriod].gpioRegs, ledArray[PomoTimer.activePeriod].pinNumber);
             break;
         default:
             break;
@@ -229,7 +236,7 @@ void PWM_0_INST_IRQHandler(){
 }
 
 void PULSE_TIMER_INST_IRQHandler(){
-    // try and handle it here?
+    // need to ensure it's the right interrupt??
     DL_Timer_getPendingInterrupt(PULSE_TIMER_INST);
     
     if(PulseData.pulseCCMPVal >= PulseData.pulseUpperBound){
@@ -242,4 +249,16 @@ void PULSE_TIMER_INST_IRQHandler(){
     DL_TimerA_setCaptureCompareValue(PWM_0_INST, ledLookupTable[PulseData.pulseCCMPVal], DL_TIMER_CC_0_INDEX);
 }
 
-
+void GROUP1_IRQHandler(void){ 
+    // reset pomodoro
+    //__BKPT(0);
+    switch(DL_Interrupt_getPendingGroup(DL_INTERRUPT_GROUP_1)){
+        case GPIO_GRP_0_INT_IIDX:
+            /*
+            for(int i = 0; i < NUMBER_OF_LEDS; i++){
+                DL_GPIO_setPins(ledArray[i].gpioRegs, ledArray[i].pinNumber);
+            }*/
+            initPomoTimer(&PomoTimer);
+            break;
+    }
+}

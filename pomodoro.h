@@ -6,10 +6,10 @@
 //standard Pomodoro timer is 25 min. of work. so with 5x LEDs, this is 5x 60 second periods
 #define NUMBER_OF_LEDS 3
 //change to 60 in prod
-#define SECONDS_PER_PERIOD 4;
+#define SECONDS_PER_PERIOD 10;
 
 //---LED PULSE BEHAVIOR---
-#define MAXBRIGHTNESS 160
+#define MAXBRIGHTNESS 255
 
 typedef struct gpioWrapper{
     // GPIO value is a macro, which looks like a big ol hex value
