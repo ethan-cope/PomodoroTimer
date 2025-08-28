@@ -44,7 +44,8 @@ GPIOWrapper ledArray[NUMBER_OF_LEDS];
 // LUT to normalize LED brightness
 uint8_t ledLookupTable[] = {0,0,1,1,1,2,2,3,3,3,4,4,5,5,6,6,6,7,7,8,8,8,9,9,10,10,11,11,11,12,12,13,13,14,14,15,15,15,16,16,17,17,18,18,19,19,20,20,21,21,21,22,22,23,23,24,24,25,25,26,26,27,27,28,28,29,29,30,30,31,31,32,32,33,34,34,35,35,36,36,37,37,38,38,39,40,40,41,41,42,42,43,44,44,45,45,46,46,47,48,48,49,49,50,51,51,52,53,53,54,54,55,56,56,57,58,58,59,60,60,61,62,62,63,64,65,65,66,67,67,68,69,70,70,71,72,73,73,74,75,76,76,77,78,79,80,80,81,82,83,84,84,85,86,87,88,89,90,91,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,119,120,121,122,123,124,126,127,128,129,131,132,133,135,136,137,139,140,141,143,144,146,147,149,150,152,153,155,156,158,160,161,163,165,166,168,170,172,174,175,177,179,181,183,185,187,190,192,194,196,199,201,203,206,208,211,214,216,219,222,225,228,231,234,237,241,244,248,252,255};
 
-int count;
+uint8_t count;
+uint8_t mb = MAXBRIGHTNESS;
 
 int main(void)
 {
@@ -57,11 +58,33 @@ int main(void)
     NVIC_EnableIRQ(GPIO_GRP_0_INT_IRQN); // for the button 
 
     // global brightness value 
-    uint8_t mb = MAXBRIGHTNESS;
+
+
+    //DL_GPIO_setPins(ledArray[0].gpioRegs, ledArray[0].pinNumber);
+
+
+    /*
+    DL_GPIO_setPins(GPIOA, GPIO_GRP_0_REAL_LED_0_PIN |
+		GPIO_GRP_0_REAL_LED_1_PIN |
+		GPIO_GRP_0_REAL_LED_2_PIN |
+		GPIO_GRP_0_REAL_LED_3_PIN);
+
+
+    DL_GPIO_setPins(GPIOB, GPIO_GRP_0_REAL_LED_4_PIN);
+    */
+
+
+    
 
     // initialize the array of LEDs for the pomodoro timer
     // ledArray is already a pointer - no need to dereference
     initLedArray(ledArray, NUMBER_OF_LEDS);
+
+        for(int i = 0; i < NUMBER_OF_LEDS; i++){
+        DL_GPIO_setPins(ledArray[i].gpioRegs, ledArray[i].pinNumber);
+    }
+
+    
 
     // initialize values for pomodoro timer
     initPomoTimer(&PomoTimer);
@@ -71,11 +94,11 @@ int main(void)
 
     //this part turns the light off
 
-    count = 0;
-
     while (1) {
         __WFI();
     }
+
+    
     
 }
 
@@ -186,6 +209,8 @@ void incrementPomoPeriod(Pomodoro *ptrPomoTimer){
 uint32_t initLedArray(GPIOWrapper *ledArray, int32_t size){
     // you'll have to manually declare your LEDs here
 
+    /*
+    //LED defines for launchpad
     // LED 1
     ledArray[0].gpioRegs = GPIOB;
     ledArray[0].pinNumber = GPIO_GRP_0_LED_1_PIN;
@@ -196,10 +221,25 @@ uint32_t initLedArray(GPIOWrapper *ledArray, int32_t size){
     ledArray[2].gpioRegs = GPIOB;
     ledArray[2].pinNumber = GPIO_GRP_0_LED_3_PIN;
     // LED 4
-    /*
-    ledArray[3].gpioRegs = GPIOA;
-    ledArray[3].pinNumber = GPIO_GRP_0_LED_4_PIN;
     */
+
+    
+    ledArray[0].gpioRegs = GPIOA;
+    ledArray[0].pinNumber = GPIO_GRP_0_REAL_LED_0_PIN;
+
+    ledArray[1].gpioRegs = GPIOA;
+    ledArray[1].pinNumber = GPIO_GRP_0_REAL_LED_1_PIN;
+
+    ledArray[2].gpioRegs = GPIOA;
+    ledArray[2].pinNumber = GPIO_GRP_0_REAL_LED_2_PIN;
+
+    ledArray[3].gpioRegs = GPIOA;
+    ledArray[3].pinNumber = GPIO_GRP_0_REAL_LED_3_PIN;
+    
+    ledArray[4].gpioRegs = GPIOB;
+    ledArray[4].pinNumber = GPIO_GRP_0_REAL_LED_4_PIN;
+    
+    
     // LED 5
 
     return 0;
@@ -258,7 +298,9 @@ void GROUP1_IRQHandler(void){
             for(int i = 0; i < NUMBER_OF_LEDS; i++){
                 DL_GPIO_setPins(ledArray[i].gpioRegs, ledArray[i].pinNumber);
             }*/
+            count +=1;
             initPomoTimer(&PomoTimer);
+            initPulseConfig(&PulseData, mb);
             break;
     }
 }

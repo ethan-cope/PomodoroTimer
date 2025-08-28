@@ -4,7 +4,7 @@
 
 //---POMODORO TIMER BEHAVIOR---
 //standard Pomodoro timer is 25 min. of work. so with 5x LEDs, this is 5x 60 second periods
-#define NUMBER_OF_LEDS 3
+#define NUMBER_OF_LEDS 5
 //change to 60 in prod
 #define SECONDS_PER_PERIOD 10;
 
