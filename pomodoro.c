@@ -154,20 +154,15 @@ uint32_t initPulseConfig(PulseConfig *ptrPulseConfig, uint8_t maxBrightness){
 }
 
 void updateLedStatuses(Pomodoro *ptrPomoTimer, GPIOWrapper* ledArray, int32_t size){
-    // this gets called on update - need to change 
-    // unfortunately have to convert between mask and index. will do this with modulus
+    // Update physical LEDs to reflect masks in pomodoro timer struct. 
+    // call this whenever you change which LEDs are active in the struct 
 
-    // pipe things in here
-
-    // turn on all LEDs in the litLedMask (do this after update)
-
-    
+    // turn on all LEDs in the litLedMask, everything else off
     for(int i = 0; i < NUMBER_OF_LEDS; i++){
 
-        // eventually set CMPxx for each of these, and tell them to watch CMPxx vs CMPPulse. keep same PWM. 
         if(((ptrPomoTimer->litLEDMask)>>i)%2){ // should spit out the mask one at a time, spitting out index[0] first
             // if that LED is in the mask, turn it on
-            // this uses the helpful ledArray struct to let us iterate over whatever LEDs we want.
+            // this uses the helpful ledArray struct to let us iterate over LEDs w/o hardcoding..
             DL_GPIO_setPins(ledArray[i].gpioRegs, ledArray[i].pinNumber);
         }
         else{
@@ -183,14 +178,15 @@ void updateLedStatuses(Pomodoro *ptrPomoTimer, GPIOWrapper* ledArray, int32_t si
 
 void incrementPomoPeriod(Pomodoro *ptrPomoTimer){
     if(ptrPomoTimer->activePeriod > 0){
+        // if there are still more periods left
         ptrPomoTimer->activePeriod -= 1;
     }
     else{
-
+        // no more periods left
         // kill the last light
         DL_GPIO_clearPins(ledArray[PomoTimer.activePeriod].gpioRegs, ledArray[PomoTimer.activePeriod].pinNumber);
   
-        //needs to stop here, wait for reset
+        //stop timers here, wait for reset
         DL_Timer_stopCounter(SECOND_TICKER_INST);
         DL_Timer_stopCounter(PULSE_TIMER_INST);
         DL_Timer_stopCounter(PWM_0_INST);
